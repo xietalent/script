@@ -1,0 +1,154 @@
+ #!/usr/bin/python
+#-*- coding:utf-8 -*-
+# ScriptName: .py
+
+
+import subprocess
+import requests,json
+import os
+
+Access_key='xxxxxxx' #改成自己的
+Secret_key='xxxxxx' #改成自己的
+nessus_url_base='https://xxx.xxx.xxx.xxx:8834'
+header = {
+     'X-ApiKeys': 'accessKey={accesskey};secretKey={secretkey}'.format(accesskey=Access_key, secretkey=Secret_key),
+     'Content-type': 'application/json',
+     'Accept': 'text/plain'}
+
+#basic的uuid，要换可以使用get_template_uuid这个函数来取
+uuid='731a8e52-3ea6-a291-ec0a-d2ff0619c19d7bd788d6be818b65'
+
+def nessus_create_scan(target):
+    url=nessus_url_base+'/scans'
+
+    data = {}
+    data['uuid'] = uuid
+    data['settings'] = {}
+    data['settings']['name'] = target
+    data['settings']['enabled'] = True
+    data['settings']['text_targets'] = target
+    respon = requests.post(url, data=json.dumps(data), headers=header, verify=False)
+    print respon.text
+    return json.loads(respon.text)['scan']['id']
+
+
+def nessus_start_launch(id):
+    url=nessus_url_base+'/scans/{scan_id}/launch'.format(scan_id=id)
+    respon = requests.post(url, headers=header, verify=False)
+    scan_uuid = respon.text
+    return scan_uuid
+
+
+
+
+def get_template_uuid(name='advanced'):
+    url = nessus_url_base+'/editor/{type}/templates'.format(type='scan')
+    respon = requests.get(url, headers=header, verify=False)
+    templates = json.loads(respon.text)['templates']
+    for template in templates:
+        print template['name']
+        print template['uuid']
+    return None
+
+def nessus_scan_details(id):
+    critical = 0
+    high = 0
+    medium = 0
+    low = 0
+
+    url = nessus_url_base+'/scans/{scan_id}'.format(scan_id=id)
+    respon = requests.get(url, headers=header, verify=False)
+    info=str(json.loads(respon.text)['hosts']).replace('u','').replace(' ','').replace('[{','').replace('}]','').split(',')
+    for i in info:
+        if 'host_id' in i:
+            host_id= i.split(':')[1]
+        elif 'critical' in i:
+            critical = i.split(':')[1]
+        elif 'high' in i:
+            high = i.split(':')[1]
+        elif 'medium' in i:
+            medium = i.split(':')[1]
+        elif 'low' in i:
+            low = i.split(':')[1]
+
+    print host_id
+    print critical
+    print high
+    print medium
+    print low
+            #host_detail_url=nessus_url_base+'/scans/{scan_id}/hosts/{host_id}'.format(scan_id=id, host_id=host_id)
+            #respon = requests.get(url, headers=header, verify=False)
+            #print json.loads(respon.text)['vulnerabilities']
+            #print json.loads(respon.text)
+
+
+
+#id=nessus_create_scan('10.254.16.108')
+#nessus_start_launch(id)
+#nessus_scan_details(260)
+#get_template_uuid()
+
+def Command_Execute(process):
+    try:
+        sp = subprocess.Popen(process,stdout=subprocess.PIPE,shell=True)
+        lines=sp.stdout.read()
+        return lines
+    except Exception, e:
+        print e
+        return e
+
+
+
+def file_check(file):
+    try:
+        f = open(file, 'r')
+        lines = f.readlines()
+        f.close
+        return lines
+    except Exception, e:
+        return 'file is no exists'
+
+
+#print Command_Execute('ls -l /Users/caspar/Documents/script')
+#print Command_Execute('cat /etc/passwd|grep root')
+#'''
+
+if __name__ == "__main__":
+    print('开始检查')
+    now=Command_Execute("date '+%Y-%m-%d %H:%M:%S'")
+    print('当前时间')+str(now)
+
+    kernel_version=Command_Execute("uname -r")
+    print('内核版本') + str(kernel_version)
+
+    release_version=Command_Execute("cat /etc/redhat-release")
+    print('系统版本')+str(release_version)
+
+    same_uid=Command_Execute("cat /etc/passwd |grep -Ev '^#|^$' |awk -F: '{print $3}' |uniq -c |awk '{print $1}' |sort -u |wc -l")
+    if int(same_uid)==1:
+        print "未发现相同UID账户"
+    else:
+        print "发现相同UID账户，请检查passwd文件"
+
+    #检查是否存在可以登录的账号
+    user_login=Command_Execute("grep -Ev '^#' /etc/passwd |grep -E '/bin/bash|/bin/ksh/bin/ksh/bin/sh/bin/tcsh' | awk -F: '{printf $1}'")
+    if user_login<>'':
+        print '存在可以登录的账号：'+user_login
+    else:
+        print('不存在可以登录的账号')
+
+    #检查是否存在uid为0的非root用户
+    user_uid0=Command_Execute("cat /etc/passwd |grep x:0: |grep -Ev '^#'|awk -F: '{printf $1}'")
+    if user_uid0<>'':
+        print '存在uid非0的root用户：'+user_uid0
+    else:
+        print '不存在uid非0的root用户'
+
+    #检查是否存在空密码的用户
+    user_passwd_none=Command_Execute("awk -F: '($2 =="") { print $1 }' /etc/shadow")
+    if user_passwd_none<>'':
+        print '存在空密码的用户：'+user_passwd_none
+    else:
+        print '不存在空密码的用户'
+
+#'''
