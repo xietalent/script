@@ -36,7 +36,7 @@ def save_to_db(sql):
 #微软 通过api来进行访问
 #访问的地址是https://portal.msrc.microsoft.com/zh-cn/developer
 #取的地址格式是
-# curl -X GET --header 'Accept: application/json' --header 'api-key: 50097affc2ca4ddbbfb3d403132c32a1' 'https://api.msrc.microsoft.com/cvrf/2018-june?api-version=2018'
+# curl -X GET --header 'Accept: application/json' --header 'api-key: 123123123123123' 'https://api.msrc.microsoft.com/cvrf/2018-june?api-version=2018'
 #####################################################################################################################################################
 
 def msrc_patch():
